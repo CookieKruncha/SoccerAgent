@@ -29,7 +29,9 @@ class MyTeam(TeamController):
         ]
 
     def act(self, obs):
-        if obs.ball.position == (0.0, 0.0) and obs.ball.controlling_team == 1:
+        # Priority 9: Avoid fouls.
+        # Use velocity == (0.0, 0.0) and distance to (0,0) < 2.0 to reliably detect waiting kickoffs.
+        if distance(obs.ball.position, (0.0, 0.0)) < 2.0 and obs.ball.velocity == (0.0, 0.0) and obs.ball.controlling_team == 1:
             return self.hold_shape_only(obs)
 
         if closest_to_ball(obs):
@@ -49,17 +51,17 @@ class MyTeam(TeamController):
         return actions
 
     def find_best_pass(self, obs, passer):
-        best_teammate = None
-        best_room = -1.0
+        best_forward = None
+        best_forward_score = -float('inf')
+        
+        best_backward = None
+        best_backward_room = -1.0
         
         for teammate in obs.my_players:
             if teammate.id == passer.id: 
                 continue
             if teammate.id == 0: 
                 continue 
-            
-            if teammate.position[0] <= passer.position[0]: 
-                continue
             
             min_room = float('inf')
             for opp in obs.opponents:
@@ -70,11 +72,21 @@ class MyTeam(TeamController):
                 if opp_dist_to_lane < min_room:
                     min_room = opp_dist_to_lane
             
-            if min_room > 2.0 and min_room > best_room:
-                best_room = min_room
-                best_teammate = teammate
+            # Forward pass
+            if teammate.position[0] > passer.position[0]:
+                if min_room > 2.0:
+                    progress = teammate.position[0] - passer.position[0]
+                    score = min_room * progress
+                    if score > best_forward_score:
+                        best_forward_score = score
+                        best_forward = teammate
+            # Backward / sideways pass fallback
+            else:
+                if min_room > 2.0 and min_room > best_backward_room:
+                    best_backward_room = min_room
+                    best_backward = teammate
                 
-        return best_teammate
+        return best_forward if best_forward else best_backward
 
     def get_chaser_intercept(self, obs, player_pos):
         predicted_pos = predict_ball(obs, 40)
@@ -128,10 +140,12 @@ class MyTeam(TeamController):
                                 kick_power=1.0
                             )
                         else:
+                            # Step 1: Real dribble state
+                            # Light touch to close ground slightly faster than dribbling, instead of punting
                             actions.kick(
                                 player.id,
                                 direction(player.position, obs.opponent_goal),
-                                kick_power=0.4,
+                                kick_power=0.15,
                                 movement=direction(player.position, obs.opponent_goal)
                             )
                 else:
