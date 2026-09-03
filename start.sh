@@ -7,8 +7,9 @@
 #     ./start.sh play my_team.py --against balanced
 #     ./start.sh doctor
 #
-# All it does is find Python and hand over, so there is one implementation of
-# the actual work rather than one per platform.
+# All it does is clear the way — macOS's quarantine tag, the executable bit —
+# and find Python before handing over, so there is one implementation of the
+# actual work rather than one per platform.
 
 set -euo pipefail
 
@@ -19,6 +20,16 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # reading this got here through `bash start.sh`, which works either way, so
 # restore the bit now and the shorter form works from here on.
 [ -x "$0" ] || chmod +x "$0" 2>/dev/null || true
+
+# macOS tags anything arriving through a browser with com.apple.quarantine, and
+# Archive Utility copies the tag onto every file it extracts. Gatekeeper then
+# refuses to start the engine — it is compiled for this course and never
+# notarised by Apple, which is exactly the combination it kills on sight, with a
+# dialog that explains none of that. Dropping the tag says "this is the download
+# I asked for" about this folder and nothing else on the machine.
+if [ "$(uname -s)" = "Darwin" ] && command -v xattr >/dev/null 2>&1; then
+    xattr -dr com.apple.quarantine . 2>/dev/null || true
+fi
 
 find_python() {
     local candidate

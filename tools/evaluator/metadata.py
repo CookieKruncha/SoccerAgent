@@ -1,8 +1,11 @@
 """Reading and checking ``team.toml``.
 
-A submission needs machine-readable identity — who wrote it, what the team is
-called — because a mark and a leaderboard row have to be attributable to
-people, and a folder name is not enough on its own.
+A submission may carry machine-readable identity — who wrote it, what the team
+is called — so that a mark and a leaderboard row can name people rather than a
+folder. Students never write it: they hand in ``team.py`` through Moodle, which
+already knows who they are, and the intake writes this file from that identity.
+It is therefore optional on disk, and a folder without one is identified by its
+slug; see :mod:`evaluator.submissions`.
 
 TOML because the rest of the platform configures itself in TOML. ``tomllib``
 arrived in Python 3.11 and the course machines are not all there yet, so this
@@ -349,9 +352,13 @@ def _require_string(table: Dict[str, Any], key: str, where: str) -> str:
 
 
 def template(slug: str = "your-team") -> str:
-    """The metadata file a student starts from."""
+    """The metadata file the intake writes, with nothing filled in.
+
+    Not student-facing: a submission is ``team.py`` alone, and this is what a
+    staff-side import produces when it has no identity to put in it.
+    """
     return (
-        "# Identity for the marker and the leaderboard. Both tables are required.\n"
+        "# Identity for the marker and the leaderboard, written by the intake.\n"
         "[team]\n"
         f'name = "{slug.replace("-", " ").title()}"\n'
         'version = "1"          # bump when you change your tactics\n'
@@ -443,12 +450,15 @@ class MyTeam(TeamController):
 
 
 def scaffold_files(slug: str) -> List[Tuple[str, str]]:
-    """``(relative path, contents)`` for a fresh submission folder."""
-    # The controller names itself after its folder, as team.toml does. Two
-    # scaffolded teams played against each other otherwise both report as
-    # "my_team", and the result table cannot be read.
+    """``(relative path, contents)`` for a fresh submission folder.
+
+    One file, because that is what a submission is. The folder name carries the
+    team's identity, so there is nothing else to write.
+    """
+    # The controller names itself after its folder. Two scaffolded teams played
+    # against each other otherwise both report as "my_team", and the result
+    # table cannot be read.
     identifier = re.sub(r"[^A-Za-z0-9_]", "_", slug).strip("_") or "my_team"
     return [
-        (METADATA_FILE, template(slug)),
         (TEAM_MODULE, STARTER_TEAM.replace("__TEAM_NAME__", identifier)),
     ]

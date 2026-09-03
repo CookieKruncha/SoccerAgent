@@ -32,21 +32,16 @@ it will tell you what it found.
 
 ## Writing your team
 
-Your team is the [`my-team/`](my-team/) folder. It holds two files, and that
-folder *is* your submission — what you debug here is exactly what you hand in.
+Your team is [`my-team/team.py`](my-team/team.py). One file, and that file *is*
+your submission — what you debug here is exactly what you hand in.
 
 ```text
 my-team/
   team.py      all of your code, in this one file
-  team.toml    your team name and your student number
 ```
 
-Open [`my-team/team.py`](my-team/team.py) and edit it. It is already a working
-team, so you can change one thing and immediately see whether it helped.
-
-Then open [`my-team/team.toml`](my-team/team.toml) and put your real name and
-student number in it. That file is what attaches your work to you on the
-leaderboard, and a submission without it is not marked.
+Open it and edit it. It is already a working team, so you can change one thing
+and immediately see whether it helped.
 
 **All of your code goes in `team.py`.** A second `.py` file next to it will not
 be importable when the server loads your team, so it is rejected rather than
@@ -57,8 +52,12 @@ START.cmd check        # Windows
 ./start.sh check       # macOS and Linux
 ```
 
-which runs the marker's own checks: the folder's structure, `team.toml`, and
-then your team actually playing a match.
+which runs the marker's own checks: the folder's structure, and then your team
+actually playing a match.
+
+When you are done, **upload `my-team/team.py` to Moodle**. That is the whole
+hand-in: no zip, no folder, nothing to fill in — Moodle already knows who you
+are, and that is where your name on the leaderboard comes from.
 
 You implement one method:
 
@@ -108,9 +107,9 @@ identical on all three platforms, and so are the results. Name your team by its
 ```
 
 `check` is the one to run before you hand anything in. It applies the same
-checks the marking pipeline does — structure, `team.toml`, and whether your
-team loads and plays inside the deadline — so a submission that passes here is
-one the marker will accept.
+checks the marking pipeline does — that your team is one file called `team.py`,
+and whether it loads and plays inside the deadline — so a submission that passes
+here is one the marker will accept.
 
 One match is close to a coin toss between evenly matched teams. `tournament`
 plays a whole set of seeds and reports the spread, which is the number worth
@@ -170,13 +169,20 @@ build for your platform. Say which platform you are on when you ask.
 executable bit. Run `bash start.sh` instead; it puts the bit back, and
 `./start.sh` works from then on.
 
-**macOS refuses to run it** — it is an unsigned download. Right-click
-`start.sh`, choose Open, and confirm once.
+**macOS says the engine "cannot be opened"** — macOS quarantines anything
+downloaded through a browser, and the engine is not notarised by Apple.
+`start.sh` clears that tag for this folder every time it runs, so start with
+`bash start.sh` rather than calling `python3 launch.py` yourself. To clear it
+by hand, from a terminal inside this folder:
+
+```bash
+xattr -dr com.apple.quarantine .
+```
 
 **A change to your team made no difference** — check you saved the file, and
 that you are running `my-team` and not an example.
 
-**"missing team.toml"** — every team folder needs one next to `team.py`. Copy
-the one in `my-team/`, or run `./start.sh new <name>` to get a valid pair.
+**"missing team.py"** — a team is a folder with a `team.py` in it, and that is
+the name the marker loads. Run `./start.sh new <name>` to get a valid one.
 
 **Anything else** — run `./start.sh doctor` and include its output when you ask.

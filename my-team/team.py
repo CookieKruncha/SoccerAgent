@@ -25,8 +25,8 @@ roughly the order they cost you goals: nobody keeps goal, the four players who
 are not chasing all run to the same place, nobody ever passes, and every shot
 is struck at full power from wherever the player is standing.
 
-The other half of your submission is `team.toml` next to this file, which says
-who you are. Fill that in too.
+This file is the whole submission: when you are done, upload it to Moodle. There
+is nothing else to fill in — Moodle already knows who you are.
 
 You write one method, `act`, and it is called on every tick of the match —
 whether the ball is yours or theirs. Deciding which of those it is, and what
@@ -45,7 +45,8 @@ from soccer import PlayerAction, TeamAction, TeamController, direction
 
 
 class MyTeam(TeamController):
-    # Put your own name and student number here.
+    # What this team calls itself in your own results and replays. Name it
+    # whatever you like; the leaderboard uses the identity Moodle has for you.
     name = "my_team"
     version = "1"
 

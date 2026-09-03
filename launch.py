@@ -10,8 +10,8 @@
     python launch.py replay <file.rep>   what is inside a recording
     python launch.py doctor              check this installation
 
-A team is a folder holding `team.py` and `team.toml`, which is exactly what
-you hand in. Name the folder wherever a team is asked for.
+A team is a folder holding `team.py`, and that file is exactly what you hand
+in. Name the folder wherever a team is asked for.
 
 On Windows, double-click START.cmd instead. On macOS and Linux, run ./start.sh.
 Both land here.
@@ -86,8 +86,9 @@ def resolve_team(value: str) -> str:
     if not team_file.is_file():
         return value
 
-    # A class named in team.toml wins: a file with two controllers in it is
-    # otherwise ambiguous, and the marker resolves it from this same field.
+    # A class named in a team.toml wins, if the folder happens to have one: a
+    # file with two controllers in it is otherwise ambiguous, and the marker
+    # resolves it from this same field. Students never write one.
     entry_class = ""
     metadata_file = candidate / "team.toml"
     if metadata_file.is_file():
@@ -122,17 +123,12 @@ def _dashboard(argv: list) -> int:
     return 0
 
 
-#: What the shipped team.toml says before anybody edits it. A submission handed
-#: in with these still in it is attributed to nobody.
-PLACEHOLDERS = {"your name", "2412345", "my team"}
-
-
 def _check(argv: list) -> int:
     """Reports whether a submission would be accepted, and whether it plays.
 
-    The same two checks the marker runs: the folder's structure and metadata,
-    then the team actually playing. Finding out here is the entire point of
-    having the platform locally.
+    The same two checks the marker runs: the folder's structure, then the team
+    actually playing. Finding out here is the entire point of having the
+    platform locally.
     """
     try:
         _, submissions = _evaluator()
@@ -142,7 +138,7 @@ def _check(argv: list) -> int:
     folders = [ROOT / name for name in argv] if argv else find_teams()
     if not folders:
         return _fail(
-            "No teams found. A team is a folder holding team.py and team.toml.\n"
+            "No teams found. A team is a folder holding team.py.\n"
             "Make one with:  python launch.py new my-team"
         )
 
@@ -160,16 +156,6 @@ def _check(argv: list) -> int:
             meta = submission.metadata
             print("    team        {} v{}".format(meta.name, meta.version))
             print("    members     {}".format(meta.member_summary()))
-            stale = [
-                member["name"] for member in meta.members
-                if member["name"].lower() in PLACEHOLDERS
-                or member["student_number"].lower() in PLACEHOLDERS
-            ]
-            if stale or meta.name.lower() in PLACEHOLDERS:
-                submission.warnings.append(
-                    "team.toml still has the example name and student number in "
-                    "it. Put your own in before you submit."
-                )
 
         for error in submission.errors:
             print("    ERROR       {}".format(error.replace("\n", "\n                ")))
@@ -191,6 +177,7 @@ def _check(argv: list) -> int:
             print("\r" + " " * 36 + "\r", end="")
         if report.get("ok"):
             print("    PASSED      it loads, plays legally and is inside the deadline")
+            print("    hand in     {}{}team.py, on Moodle".format(folder.name, os.sep))
         else:
             worst = 1
             for error in report.get("errors", []):

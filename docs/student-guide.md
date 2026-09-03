@@ -28,13 +28,15 @@ watch the match. That is the whole loop.
 
 On macOS and Linux, `./start.sh` works from the second run onwards — some unzip
 tools drop the executable bit, and the first run through `bash` puts it back.
-macOS may also refuse an unsigned download the first time: right-click
-`start.sh`, choose Open, and confirm once.
+On macOS the first run also clears the quarantine tag your browser puts on
+anything it downloads — without that, macOS refuses to start the engine. That
+is a reason to start through `start.sh` rather than running `launch.py`
+yourself.
 
 What is in the folder:
 
 ```text
-my-team/       your team - team.py and team.toml. This folder IS your submission.
+my-team/       your team - team.py. That file IS your submission.
 examples/      two more teams to read
 docs/          this guide
 replays/       matches you record land here
@@ -820,9 +822,9 @@ different machine, it works for you with the leading word swapped — so when th
 guide says `./start.sh play …`, Windows reads `START.cmd play …`.
 
 `check` is the one to run before you hand anything in. It applies the same checks
-the marking pipeline applies — the folder's structure, `team.toml`, and whether
-your team loads and plays inside the deadline — so a submission that passes here
-is one the marker will accept.
+the marking pipeline applies — that your team is one file called `team.py`, and
+that it loads and plays inside the deadline — so a submission that passes here is
+one the marker will accept.
 
 ### Playing against a team of your own
 
@@ -927,33 +929,22 @@ deadline, look at what you are doing per tick.
 
 ## 9. What you hand in
 
-A folder named after you, holding exactly two files. That is `my-team/` from your
-download, renamed — what you have been debugging all along is the submission
-itself, with nothing to assemble at the end:
+**One file: `my-team/team.py`, uploaded to Moodle.** That is the whole
+submission. There is nothing to zip, no folder to name and no form to fill in —
+Moodle already knows who you are, and your name on the leaderboard comes from
+there. What you have been debugging all along is exactly what you hand in.
 
 ```text
-2412345-alice-and-bob/
-  team.py       required   all of your code, in this one file
-  team.toml     required   your team's name and members
-  data/         optional   read-only data files, up to 5 MB
-  README.md     optional   anything the marker should read
-```
-
-```toml
-[team]
-name = "Fast Break FC"     # this is what appears on the leaderboard
-version = "1"              # bump it when you change your tactics
-
-[[members]]
-name = "Alice Nkosi"
-student_number = "2412345"
+my-team/
+  team.py       all of your code, in this one file   <- upload this
 ```
 
 `team.py` must contain exactly one `TeamController` subclass. **A second `.py`
 file is rejected** — your team file is loaded on its own, so `import helpers`
-works on your laptop and fails on the server. Everything goes in `team.py`.
+works on your laptop and fails on the server. Everything goes in `team.py`, and
+it must keep that name.
 
-Check the whole thing before you hand it in:
+Check it before you hand it in:
 
 ```bash
 ./start.sh check

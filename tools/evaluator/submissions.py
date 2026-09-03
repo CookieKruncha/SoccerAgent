@@ -5,13 +5,20 @@ A submissions root holds one folder per team::
     submissions/
       2412345-alice-and-bob/
         team.py      required   all of the team's code, in one file
-        team.toml    required   team name and members
+        team.toml    optional   team name and members, written by the intake
         README.md    optional   anything the marker should read
         data/        optional   read-only data files, up to DATA_LIMIT_BYTES
 
 The folder name is the team's slug: it identifies the team in every result row,
 replay file name and web page, so it is checked and never derived from anything
 a student writes inside a file.
+
+**One file is the whole submission.** Students hand in ``team.py`` through
+Moodle and nothing else — Moodle already knows who they are, so asking them to
+restate it in a file bought nothing and cost a class's worth of typos. The
+intake writes ``team.toml`` from that identity (see
+``Arena.add_submission``); when a folder has none, the team is identified and
+displayed by its slug.
 
 **One file of code, deliberately.** ``team.py`` is imported directly by path,
 not as a package, so a second module next to it would not be importable and a
@@ -35,7 +42,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .metadata import (
     METADATA_FILE,
@@ -89,6 +96,12 @@ class Submission:
     flags: List[str] = field(default_factory=list)
     #: Filled in by check_behaviour().
     validation: Optional[Dict[str, Any]] = None
+    #: Set by entrants() when the course names this slug as staff rather than
+    #: a student to be ranked. Never derived from anything the submission
+    #: itself claims, the same way a baseline is named on the command line and
+    #: not inferred from a folder's contents — a submission cannot promote
+    #: itself out of the students' table.
+    role: str = ""
 
     # -- identity ---------------------------------------------------------
 
@@ -96,6 +109,10 @@ class Submission:
     def ok(self) -> bool:
         """True when this submission may be entered into a tournament."""
         return not self.errors and (self.validation is None or self.validation.get("ok"))
+
+    @property
+    def kind(self) -> str:
+        return self.role or "submission"
 
     @property
     def name(self) -> str:
@@ -131,7 +148,7 @@ class Submission:
             "slug": self.slug,
             "name": self.name,
             "version": self.version,
-            "kind": "submission",
+            "kind": self.kind,
             "members": self.members,
             "ok": self.ok,
             "errors": list(self.errors),
@@ -158,6 +175,10 @@ class Baseline:
     @property
     def version(self) -> str:
         return "engine"
+
+    @property
+    def kind(self) -> str:
+        return "baseline"
 
     @property
     def spec(self) -> str:
@@ -239,7 +260,7 @@ def discover(root: Path, *, static_review: bool = True) -> List[Submission]:
     if not submissions:
         raise SubmissionError(
             f"{root} contains no submission folders. Each team needs its own "
-            f"folder with {TEAM_MODULE} and {METADATA_FILE} in it."
+            f"folder with {TEAM_MODULE} in it."
         )
     return sorted(submissions, key=lambda s: s.slug)
 
@@ -277,13 +298,11 @@ def _check_required_files(submission: Submission) -> None:
             f"in data/."
         )
 
+    # Optional, and deliberately so: a submission is one file. A folder without
+    # metadata is identified by its slug, which is where every result row, page
+    # and replay name takes the team's identity from anyway.
     metadata_file = submission.path / METADATA_FILE
     if not metadata_file.is_file():
-        submission.errors.append(
-            f"missing {METADATA_FILE}. It names your team and lists its members:\n"
-            f"  [team]\n  name = \"Your Team Name\"\n\n  [[members]]\n"
-            f"  name = \"Your Name\"\n  student_number = \"2412345\""
-        )
         return
     try:
         text = metadata_file.read_text(encoding="utf-8")
@@ -479,19 +498,42 @@ def check_all(
 # ---------------------------------------------------------------------------
 
 
+#: Course staff whose submissions play the field for comparison but are not
+#: ranked as a student's own work. Matched by slug, the same way a baseline is
+#: matched by name — see ``entrants()``. Named here rather than left to be
+#: guessed from a folder, the way ``--baseline`` is a name on the command line
+#: and not something a submission can claim about itself.
+DEFAULT_LECTURERS: Tuple[str, ...] = (
+    "73914-branden-ingram",
+    "74118-devon-jarvis",
+    "74607-pravesh-ranchod",
+)
+
+
 def entrants(
-    submissions: Iterable[Submission], baselines: Iterable[str] = ()
+    submissions: Iterable[Submission],
+    baselines: Iterable[str] = (),
+    lecturers: Iterable[str] = DEFAULT_LECTURERS,
 ) -> List[Entrant]:
     """The field for a tournament: valid submissions plus named baselines.
 
     Slugs are unique across the field, so a submission folder called
     ``balanced`` cannot quietly displace the baseline of that name.
+
+    ``lecturers`` tags submissions from ``slug_for(name) in lecturers`` as
+    ``kind="lecturer"`` instead of ``"submission"``. They still play every
+    fixture a student's team would — so "how do I do against a lecturer's
+    team?" is still answerable — but ``tournament.divisions`` leaves them
+    unbanded, the same way it leaves a baseline unbanded.
     """
+    lecturer_slugs = {slug_for(name) for name in lecturers}
     field_list: List[Entrant] = []
     taken: Dict[str, str] = {}
     for submission in submissions:
         if not submission.ok:
             continue
+        if submission.slug in lecturer_slugs:
+            submission.role = "lecturer"
         taken[submission.slug] = "submission"
         field_list.append(submission)
     for name in baselines:
