@@ -30,7 +30,9 @@ def lane_room(obs, a, b):
 
 class MyTeam(TeamController):
     name = "my_team"
-    version = "5"
+    version = "7"
+
+    FORWARD_IDS = (3, 4)
 
     def initial_formation(self, field):
         forward_x = -field.centre_circle_radius - 0.1
@@ -157,6 +159,51 @@ class MyTeam(TeamController):
             remaining_markers.remove(nearest)
         return assignment
 
+    def find_space_ahead(self, obs, player):
+        """A forward's run once we have the ball: search a grid of depths
+        and widths rather than one fixed depth, and pick whichever keeps
+        them furthest from the nearest defender. A single fixed depth
+        only ever varies width, so against a marker that mirrors this
+        player's exact position (man-marking), there is often nowhere at
+        that depth to shake them - separation instead has to come from
+        varying depth too, even if that means dropping off the shoulder
+        rather than staying pinned level with the ball."""
+        best_spot = player.position
+        best_score = -float('inf')
+        for x_offset in (8.0, 14.0, 20.0, 26.0):
+            run_x = clamp(
+                obs.ball.position[0] + x_offset,
+                -obs.field.width / 2 + 3.0, obs.field.width / 2 - 3.0,
+            )
+            for y_offset in (-20.0, -10.0, 0.0, 10.0, 20.0):
+                y = clamp(player.position[1] + y_offset, -obs.field.height / 2 + 3.0, obs.field.height / 2 - 3.0)
+                candidate = (run_x, y)
+                opp = obs.closest_opponent_to(candidate)
+                separation = distance(opp.position, candidate) if opp else float('inf')
+                # Small bonus for staying advanced, so a tied score doesn't
+                # drift the run backwards just to shake a marker.
+                score = separation + x_offset * 0.05
+                if score > best_score:
+                    best_score = score
+                    best_spot = candidate
+        return best_spot
+
+    def support_spot(self, obs, player):
+        """Where an outfield player who is neither chasing nor marking
+        should stand. Forwards make a run into space once we have the
+        ball; the back line pushes up to compress the pitch, but only up
+        to a cap - overcommitting them is what a well organised opponent
+        counter-attacks into."""
+        we_have_it = obs.ball.controlling_team == 0
+        if we_have_it and player.id in self.FORWARD_IDS:
+            return self.find_space_ahead(obs, player)
+
+        base_x, base_y = self.initial_formation(obs.field)[player.id]
+        shift_x = obs.ball.position[0] * (0.6 if we_have_it else 0.5)
+        cap = obs.field.width / 2 - 5.0 if player.id in self.FORWARD_IDS else -5.0
+        spot_x = clamp(base_x + shift_x, -obs.field.width / 2 + 3.0, cap)
+        return (spot_x, base_y)
+
     def on_the_ball(self, obs):
         actions = TeamAction()
 
@@ -182,12 +229,16 @@ class MyTeam(TeamController):
                     # Shooting must be able to win against a "safe" backward
                     # pass, or a trailing team-mate who is always open ends up
                     # vetoing every shot - which is what silently strangled
-                    # this team's scoring before. Close in, take a reasonably
-                    # clean look over anything else; further out, still take
-                    # it if there is no better forward option on.
+                    # this team's scoring before. Very close in, take almost
+                    # anything on frame over a risky pass; further out, still
+                    # take a reasonably clean look, or any look if there is no
+                    # better forward option on.
+                    very_close_look = gap < 15.0 and shot_room > 0.5
                     close_range_look = gap < 25.0 and shot_room > 2.5
                     no_better_forward_option = forward_target is None and shot_room > 1.5
-                    take_shot = shot_target is not None and (close_range_look or no_better_forward_option)
+                    take_shot = shot_target is not None and (
+                        very_close_look or close_range_look or no_better_forward_option
+                    )
 
                     if take_shot:
                         actions.kick(
@@ -226,9 +277,7 @@ class MyTeam(TeamController):
                         direction(player.position, intercept_spot)
                     )
             else:
-                base_x, base_y = self.initial_formation(obs.field)[player.id]
-                shift_x = obs.ball.position[0] * 0.5
-                spot = (base_x + shift_x, base_y)
+                spot = self.support_spot(obs, player)
                 actions.move(player.id, direction(player.position, spot))
 
         return actions
@@ -269,9 +318,7 @@ class MyTeam(TeamController):
                             them.position[1] + to_goal[1] * 3.0)
                     actions.move(player.id, direction(player.position, spot))
                 else:
-                    base_x, base_y = self.initial_formation(obs.field)[player.id]
-                    shift_x = obs.ball.position[0] * 0.5
-                    spot = (base_x + shift_x, base_y)
+                    spot = self.support_spot(obs, player)
                     actions.move(player.id, direction(player.position, spot))
 
         return actions
